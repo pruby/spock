@@ -38,13 +38,14 @@ class RipplePlugin:
                         self.send_payment(sender, arg_match.group(1), Decimal(arg_match.group(2)), 'd')
                     else:
                         self.send_pm(sender, "Usage: pay <person> <amount>d")
-                elif command == 'payas':
-                    arg_match = re.search('^ ([A-Za-z0-9]+) ([A-Za-z0-9]+) ([0-9]+(?:\.[0-9]{1,2})?)d', remaining)
+                elif command == 'transactions':
+                    arg_match = re.search('^ --all', remaining)
                     if arg_match:
-                        self.send_pm(sender, "Matched pay arguments")
-                        self.send_payment(arg_match.group(1), arg_match.group(2), Decimal(arg_match.group(3)), 'd')
+                        self.show_all_transactions(sender)
+                    elif remaining == '':
+                        self.show_direct_transactions(sender)
                     else:
-                        self.send_pm(sender, "Usage: pay <person> <amount>d")
+                        self.send_pm(sender, "Usage: transactions [--all]")
                 else:
                     self.send_pm(sender, "Command not understood: %s" % (command))
         except Exception as error:
@@ -53,6 +54,16 @@ class RipplePlugin:
     
     def send_pm(self, user, message):
         self.client.push(Packet(ident=0x03, data={'text':"/msg %s %s" % (user, message)}))
+    
+    def show_direct_transactions(self, sender):
+        self.cur.execute("""SELECT sent_at, sent_from, sent_to, amount, currency FROM transactions WHERE (sent_from = %s OR sent_to = %s) AND sent_at > NOW() - '1 week'::interval ORDER BY sent_at DESC LIMIT 5""", (sender, sender))
+        for row in self.cur.fetchall():
+            self.send_pm(sender, "[%s] %0.2f%s %s -> %s" % (row[0].strftime("%Y-%m-%d"), row[3], row[4], row[1], row[2]))
+    
+    def show_all_transactions(self, sender):
+        self.cur.execute("""SELECT DISTINCT transaction_paths.transaction_id, transactions.sent_at, transaction_paths.amount, transactions.currency, transaction_paths.path FROM shifts JOIN transaction_paths USING (transaction_id, path_id) JOIN transactions ON (shifts.transaction_id = transactions.transaction_id) WHERE from_account = %s AND sent_at > NOW() - '1 week'::interval ORDER BY sent_at DESC LIMIT 10""", (sender))
+        for row in self.cur.fetchall():
+            self.send_pm(sender, "[%s] sent %0.2f%s through (%s)" % (row[1].strftime("%Y-%m-%d"), row[2], row[3], ', '.join(row[4])))
     
     def add_trust(self, trustor, trustee, amount, currency):
         self.cur.execute("""SELECT 1 FROM trusts WHERE trustor = %s AND trustee = %s AND currency = %s""", (trustor, trustee, currency))
