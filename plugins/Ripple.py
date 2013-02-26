@@ -173,10 +173,11 @@ class RipplePlugin:
         self.cur.execute("""SELECT amount FROM trusts WHERE trustor = %s AND trustee = %s AND currency = %s""", (trustor, trustee, currency))
         row = self.cur.fetchone()
         if row:
-            if row[0] >= amount:
+            if row[0] > amount:
                 self.conn.commit()
                 self.cur.execute("""UPDATE trusts SET amount = amount - %s WHERE trustor = %s AND trustee = %s AND currency = %s""", (amount, trustor, trustee, currency))
                 self.cur.execute("""INSERT INTO trust_changes (trustor, trustee, changed_by, currency) VALUES (%s, %s, %s, %s)""", (trustor, trustee, amount, currency))
+                self.conn.commit()
                 self.send_pm(trustor, "Reduced trust in %s by %f" % (trustee, amount))
             else:
                 self.cur.execute("""INSERT INTO trust_changes (trustor, trustee, changed_by, currency) VALUES (%s, %s, %s, %s)""", (trustor, trustee, -row[0], currency))
