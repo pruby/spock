@@ -21,19 +21,29 @@ class RipplePlugin:
             msg = re.sub('\xa7.', '', msg)
             match = re.search('^([A-Za-z0-9]+) whispers ([A-Za-z0-9]+)(.*)', msg)
             if match:
+                self.cur = self.conn.cursor()
                 sender = match.group(1)
                 command = match.group(2)
                 remaining = match.group(3)
-                if command == 'trust':
+                if command == 'register':
+                    if self.check_account(0, sender):
+                        self.send_pm(sender, "You are already registered :)")
+                    else:
+                        self.register_account(sender)
+                elif command == 'trust':
                     arg_match = re.search('^ ([A-Za-z0-9]+) ([0-9]+(?:\.[0-9]{1,2})?)([di])', remaining)
                     if arg_match:
                         trustee = arg_match.group(1)
-                        amount = Decimal(arg_match.group(2))
-                        if amount > 0:
-                            if check_account(sender, sender) and check_account(sender, trustee):
-                                self.add_trust(sender, trustee, amount, arg_match.group(3))
+                        if trustee == sender:
+                            self.send_pm(sender, "You can't loan yourself money")
                         else:
-                            self.send_pm(sender, "You can only trust a positive amount. Nice try :)")
+                            amount = Decimal(arg_match.group(2))
+                            if amount > 0:
+                                if self.check_account(sender, sender) and self.check_account(sender, trustee):
+                                    self.add_trust(sender, trustee, amount, arg_match.group(3))
+                                    self.show_trusts(sender)
+                            else:
+                                self.send_pm(sender, "You can only trust a positive amount. Nice try :)")
                     else:
                         self.send_pm(sender, "Usage: trust <person> <amount>d")
                 elif command == 'reducetrust':
@@ -41,18 +51,31 @@ class RipplePlugin:
                     if arg_match:
                         trustee = arg_match.group(1)
                         amount = abs(Decimal(arg_match.group(2)))
-                        if check_account(sender, sender) and check_account(sender, trustee):
+                        if self.check_account(sender, sender) and self.check_account(sender, trustee):
                             self.reduce_trust(sender, trustee, amount, arg_match.group(3))
                     else:
                         self.send_pm(sender, "Usage: reducetrust <person> <amount>d")
                 elif command == 'pay':
-                    arg_match = re.search('^ ([A-Za-z0-9]+) ([0-9]+(?:\.[0-9]{1,2})?)([di)', remaining)
+                    arg_match = re.search('^ ([A-Za-z0-9]+) ([0-9]+(?:\.[0-9]{1,2})?)([di])', remaining)
                     if arg_match:
                         recipient = arg_match.group(1)
                         amount = Decimal(arg_match.group(2))
                         if amount > 0:
-                            if check_account(sender, sender) and check_account(sender, recipient):
-                                self.send_payment(sender, arg_match.group(1), Decimal(arg_match.group(2)), arg_match.group(3))
+                            if self.check_account(sender, sender) and self.check_account(sender, recipient):
+                                self.send_payment(sender, recipient, amount, arg_match.group(3))
+                        else:
+                            self.send_pm(sender, "You can only pay a positive amount. Nice try :)")
+                    else:
+                        self.send_pm(sender, "Usage: pay <person> <amount>d")
+                elif command == 'payas':
+                    arg_match = re.search('^ ([A-Za-z0-9]+) ([A-Za-z0-9]+) ([0-9]+(?:\.[0-9]{1,2})?)([di])', remaining)
+                    if arg_match:
+                        sender = arg_match.group(1)
+                        recipient = arg_match.group(2)
+                        amount = Decimal(arg_match.group(3))
+                        if amount > 0:
+                            if self.check_account(sender, sender) and self.check_account(sender, recipient):
+                                self.send_payment(sender, recipient, amount, arg_match.group(4))
                         else:
                             self.send_pm(sender, "You can only pay a positive amount. Nice try :)")
                     else:
@@ -60,39 +83,80 @@ class RipplePlugin:
                 elif command == 'transactions':
                     arg_match = re.search('^ --all', remaining)
                     if arg_match:
-                        if check_account(sender, sender):
+                        if self.check_account(sender, sender):
                             self.show_all_transactions(sender)
                     elif remaining == '':
-                        if check_account(sender, sender):
+                        if self.check_account(sender, sender):
                             self.show_direct_transactions(sender)
                     else:
                         self.send_pm(sender, "Usage: transactions [--all]")
+                elif command == 'trusts':
+                    if self.check_account(sender, sender):
+                        self.show_trusts(sender)
+                elif command == 'debts':
+                    if self.check_account(sender, sender):
+                        self.show_debts(sender)
+                elif command == 'owed':
+                    if self.check_account(sender, sender):
+                        self.show_owed(sender)
                 else:
                     self.send_pm(sender, "Command not understood: %s" % (command))
         except Exception as error:
             print "Error handling command %s: %s" % (msg, error)
             print traceback.format_exc()
+            try:
+                self.conn.rollback()
+            except:
+                pass
     
     def send_pm(self, user, message):
         self.client.push(Packet(ident=0x03, data={'text':"/msg %s %s" % (user, message)}))
         
     def check_account(self, invoker, account):
-        self.cur.execute("""SELECT 1 FROM accounts WHERE account_name = %s""", (account))
-        row = self.cur.fetchone():
+        self.cur.execute("""SELECT 1 FROM accounts WHERE account_name = (%s)""", (account,))
+        row = self.cur.fetchone()
         if not row:
-            send_pm(invoker, "%s is not a registered account" % (account))
-            return false
-        return true
+            if invoker:
+                self.send_pm(invoker, "%s has not registered for ripple pay" % (account,))
+            return 0
+        return 1
+        
+    def show_trusts(self, account):
+        self.cur.execute("""SELECT trustee, amount, currency FROM trusts WHERE trustor = %s ORDER BY trustee""", (account,))
+        trusts = []
+        for row in self.cur.fetchall():
+            trusts.append("%s (%0.2f%s)" % row)
+        self.send_pm(account, "You trust: " + ', '.join(trusts))
+        
+    def show_debts(self, account):
+        self.cur.execute("""SELECT debt_to, amount, currency FROM debts WHERE debt_from = %s ORDER BY debt_to""", (account,))
+        trusts = []
+        for row in self.cur.fetchall():
+            trusts.append("%s (%0.2f%s)" % row)
+        self.send_pm(account, "You owe: " + ', '.join(trusts))
+        
+    def show_owed(self, account):
+        self.cur.execute("""SELECT debt_from, amount, currency FROM debts WHERE debt_to = %s ORDER BY debt_from""", (account,))
+        trusts = []
+        for row in self.cur.fetchall():
+            trusts.append("%s (%0.2f%s)" % row)
+        self.send_pm(account, "You are owed: " + ', '.join(trusts))
+    
+    def register_account(self, sender):
+        self.cur.execute("""INSERT INTO accounts (account_name) VALUES (%s)""", (sender,))
+        self.conn.commit()
+        self.send_pm(sender, "Ripple account registered. You may now use this in-game ripple pay system.")
+        self.send_pm(sender, "The network operator gives no guarantees and takes no responsibility for errors whatsoever.")
     
     def show_direct_transactions(self, sender):
         self.cur.execute("""SELECT sent_at, sent_from, sent_to, amount, currency FROM transactions WHERE (sent_from = %s OR sent_to = %s) AND sent_at > NOW() - '1 week'::interval ORDER BY sent_at DESC LIMIT 5""", (sender, sender))
         for row in self.cur.fetchall():
-            self.send_pm(sender, "[%s] %0.2f%s %s -> %s" % (row[0].strftime("%Y-%m-%d"), row[3], row[4], row[1], row[2]))
+            self.send_pm(sender, "[%s] %0.2f%s %s -> %s" % (row[0].strftime("%Y-%m-%d %H:%M:%S"), row[3], row[4], row[1], row[2]))
     
     def show_all_transactions(self, sender):
-        self.cur.execute("""SELECT DISTINCT transaction_paths.transaction_id, transactions.sent_at, transaction_paths.amount, transactions.currency, transaction_paths.path FROM shifts JOIN transaction_paths USING (transaction_id, path_id) JOIN transactions ON (shifts.transaction_id = transactions.transaction_id) WHERE from_account = %s AND sent_at > NOW() - '1 week'::interval ORDER BY sent_at DESC LIMIT 10""", (sender))
+        self.cur.execute("""SELECT DISTINCT transaction_paths.transaction_id, transactions.sent_at, transaction_paths.amount, transactions.currency, transaction_paths.path FROM shifts JOIN transaction_paths USING (transaction_id, path_id) JOIN transactions ON (shifts.transaction_id = transactions.transaction_id) WHERE from_account = %s OR to_account = %s AND sent_at > NOW() - '1 week'::interval ORDER BY sent_at DESC LIMIT 10""", (sender,sender))
         for row in self.cur.fetchall():
-            self.send_pm(sender, "[%s] sent %0.2f%s through (%s)" % (row[1].strftime("%Y-%m-%d"), row[2], row[3], ', '.join(row[4])))
+            self.send_pm(sender, "[%s] sent %0.2f%s through (%s)" % (row[1].strftime("%Y-%m-%d %H:%M:%S"), row[2], row[3], ', '.join(row[4])))
     
     def add_trust(self, trustor, trustee, amount, currency):
         self.cur.execute("""SELECT 1 FROM trusts WHERE trustor = %s AND trustee = %s AND currency = %s""", (trustor, trustee, currency))
@@ -126,7 +190,8 @@ class RipplePlugin:
             total_amount += pair[1]
         if total_amount == amount:
             self.transact_paths(sender, recipient, amount, paths, currency)
-            self.send_pm(sender, "Sent %0.2f to %s" % (amount, recipient))
+            self.send_pm(sender, "Sent %0.2f%s to %s" % (amount, currency, recipient))
+            self.send_pm(recipient, "%s sent you %0.2f%s" % (sender, amount, currency))
         else:
             self.send_pm(sender, "Could not send payment of %0.2f%s to %s, maximum is %0.2f%s" % (amount, currency, recipient, total_amount, currency))
     
@@ -178,7 +243,7 @@ class RipplePlugin:
         return paths
     
     def find_bottleneck(self, path, currency, prior_paths):
-        # TODO: find how much we can send along a path
+        # Find how much we can send along a path
         limit = None
         from_account = path[0]
         for to_account in path[1:]:

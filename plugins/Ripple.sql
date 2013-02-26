@@ -2,13 +2,13 @@ BEGIN;
 
 CREATE TABLE accounts (
   account_name TEXT PRIMARY KEY,
-  created_at TIMESTAMP NOT NULL DEFAULT 'now'
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE trusts (
   trustor TEXT NOT NULL,
   trustee TEXT NOT NULL,
-  amount DECIMAL NOT NULL CHECK (amount > 0),
+  amount DECIMAL NOT NULL CHECK (amount >= 0),
   currency TEXT NOT NULL,
   PRIMARY KEY (trustor, trustee, currency)
 );
@@ -16,7 +16,7 @@ CREATE TABLE trusts (
 CREATE TABLE debts (
   debt_from TEXT NOT NULL,
   debt_to TEXT NOT NULL,
-  amount DECIMAL NOT NULL CHECK (amount > 0),
+  amount DECIMAL NOT NULL CHECK (amount >= 0),
   currency TEXT NOT NULL,
   PRIMARY KEY (debt_from, debt_to, currency)
 );
@@ -26,7 +26,7 @@ CREATE TABLE trust_changes (
   trustee TEXT NOT NULL,
   changed_by DECIMAL NOT NULL,
   currency TEXT NOT NULL,
-  changed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT 'now'
+  changed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE transactions (
@@ -35,7 +35,7 @@ CREATE TABLE transactions (
   sent_to TEXT NOT NULL,
   amount DECIMAL NOT NULL CHECK (amount > 0),
   currency TEXT NOT NULL,
-  sent_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT 'now'
+  sent_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE transaction_paths (
