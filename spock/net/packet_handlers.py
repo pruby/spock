@@ -1,9 +1,7 @@
 import logging
 import socket
-from copy import copy
 from spock import utils, smpmap
 from spock.mcp import mcdata, mcpacket
-from spock.net.cflags import cflags
 from Crypto.Cipher import PKCS1_v1_5
 from Crypto.PublicKey import RSA
 
@@ -35,9 +33,8 @@ class BaseHandle:
 class handle00(BaseHandle):
 	@classmethod
 	def ToClient(self, client, packet):
-		tosend = copy(packet)
-		tosend.direction = mcdata.CLIENT_TO_SERVER
-		client.push(tosend)
+		packet.direction = mcdata.CLIENT_TO_SERVER
+		client.push(packet)
 
 #Login Request - Update client state info
 @phandle(0x01)
@@ -104,7 +101,6 @@ class SpawnEntity(BaseHandle):
 class handle33(BaseHandle):
 	@classmethod
 	def ToClient(self, client, packet):
-		client.flags += cflags['WLD_UPDT']|cflags['BLK_UPDT']
 		client.world.unpack_column(packet)
 
 #Map Chunk Bulk - Update client World state
@@ -112,7 +108,6 @@ class handle33(BaseHandle):
 class handle38(BaseHandle):
 	@classmethod
 	def ToClient(self, client, packet):
-		client.flags += cflags['WLD_UPDT']|cflags['BLK_UPDT']
 		client.world.unpack_bulk(packet)
 
 #Player List Item - Update client Playerlist (not actually a list...)
@@ -153,6 +148,7 @@ class handleFD(BaseHandle):
 			SessionResponse = utils.AuthenticateMinecraftSession(client.username, client.sessionid, serverid)
 			if (SessionResponse != 'OK'):
 				logging.error('Session Authentication Failed, Response: %s', SessionResponse)
+				client.auth_err = True
 				return
 
 		#Stage 4: Send an Encryption Response
@@ -170,40 +166,4 @@ class handleFD(BaseHandle):
 class handleFD(BaseHandle):
 	@classmethod
 	def ToClient(self, client, packet):
-		client.poll.unregister(client.sock)
-		client.sock.close()
-		client.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		client.sock.setblocking(0)
-		client.poll.register(client.sock)
-
-		client.sbuff = ''
-		client.rbuff.flush()
-		client.encrypted = False
-
-		client.world = smpmap.World()
-		client.world_time = {
-			'world_age': 0,
-			'time_of_day': 0,
-		}
-		client.position = {
-			'x': 0,
-			'y': 0,
-			'z': 0,
-			'stance': 0,
-			'yaw': 0,
-			'pitch': 0,
-			'on_ground': False,
-		}
-		client.health = {
-			'health': 20,
-			'food': 20,
-			'food_saturation': 5,
-		}
-		client.playerlist = {}
-		client.entitylist = {}
-		client.spawn_position = {
-			'x': 0,
-			'y': 0,
-			'z': 0,
-		}
-		client.login_info = {}
+		utils.ResetClient(client)

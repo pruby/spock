@@ -1,11 +1,17 @@
 #Constantly Changing, just a plugin I use to debug whatever is broken atm
-from spock.mcp import mcdata
+import sys
+from spock.mcp.mcdata import structs
+from spock.net.cflags import cflags
 
 class DebugPlugin:
 	def __init__(self, client):
 		self.client = client
-		for ident in mcdata.structs:
-			client.register_dispatch(self.debug, ident)
+		client.register_dispatch(self.debug, *structs)
+		client.register_handler(self.dying, cflags['KILL_EVENT'])
+
+	def dying(self, *args):
+		print "I'm dying!"
+
 	def debug(self, packet):
 		if (packet.ident == 0xC9 
 		or packet.ident == 0x03
