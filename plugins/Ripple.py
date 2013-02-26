@@ -25,25 +25,46 @@ class RipplePlugin:
                 command = match.group(2)
                 remaining = match.group(3)
                 if command == 'trust':
-                    arg_match = re.search('^ ([A-Za-z0-9]+) ([0-9]+(?:\.[0-9]{1,2})?)d', remaining)
+                    arg_match = re.search('^ ([A-Za-z0-9]+) ([0-9]+(?:\.[0-9]{1,2})?)([di])', remaining)
                     if arg_match:
-                        self.send_pm(sender, "Matched trust arguments")
-                        self.add_trust(sender, arg_match.group(1), Decimal(arg_match.group(2)), 'd')
+                        trustee = arg_match.group(1)
+                        amount = Decimal(arg_match.group(2))
+                        if amount > 0:
+                            if check_account(sender, sender) and check_account(sender, trustee):
+                                self.add_trust(sender, trustee, amount, arg_match.group(3))
+                        else:
+                            self.send_pm(sender, "You can only trust a positive amount. Nice try :)")
                     else:
                         self.send_pm(sender, "Usage: trust <person> <amount>d")
-                elif command == 'pay':
-                    arg_match = re.search('^ ([A-Za-z0-9]+) ([0-9]+(?:\.[0-9]{1,2})?)d', remaining)
+                elif command == 'reducetrust':
+                    arg_match = re.search('^ ([A-Za-z0-9]+) (?:([0-9]+(?:\.[0-9]{1,2})?)([di]))?', remaining)
                     if arg_match:
-                        self.send_pm(sender, "Matched pay arguments")
-                        self.send_payment(sender, arg_match.group(1), Decimal(arg_match.group(2)), 'd')
+                        trustee = arg_match.group(1)
+                        amount = abs(Decimal(arg_match.group(2)))
+                        if check_account(sender, sender) and check_account(sender, trustee):
+                            self.reduce_trust(sender, trustee, amount, arg_match.group(3))
+                    else:
+                        self.send_pm(sender, "Usage: reducetrust <person> <amount>d")
+                elif command == 'pay':
+                    arg_match = re.search('^ ([A-Za-z0-9]+) ([0-9]+(?:\.[0-9]{1,2})?)([di)', remaining)
+                    if arg_match:
+                        recipient = arg_match.group(1)
+                        amount = Decimal(arg_match.group(2))
+                        if amount > 0:
+                            if check_account(sender, sender) and check_account(sender, recipient):
+                                self.send_payment(sender, arg_match.group(1), Decimal(arg_match.group(2)), arg_match.group(3))
+                        else:
+                            self.send_pm(sender, "You can only pay a positive amount. Nice try :)")
                     else:
                         self.send_pm(sender, "Usage: pay <person> <amount>d")
                 elif command == 'transactions':
                     arg_match = re.search('^ --all', remaining)
                     if arg_match:
-                        self.show_all_transactions(sender)
+                        if check_account(sender, sender):
+                            self.show_all_transactions(sender)
                     elif remaining == '':
-                        self.show_direct_transactions(sender)
+                        if check_account(sender, sender):
+                            self.show_direct_transactions(sender)
                     else:
                         self.send_pm(sender, "Usage: transactions [--all]")
                 else:
@@ -54,6 +75,14 @@ class RipplePlugin:
     
     def send_pm(self, user, message):
         self.client.push(Packet(ident=0x03, data={'text':"/msg %s %s" % (user, message)}))
+        
+    def check_account(self, invoker, account):
+        self.cur.execute("""SELECT 1 FROM accounts WHERE account_name = %s""", (account))
+        row = self.cur.fetchone():
+        if not row:
+            send_pm(invoker, "%s is not a registered account" % (account))
+            return false
+        return true
     
     def show_direct_transactions(self, sender):
         self.cur.execute("""SELECT sent_at, sent_from, sent_to, amount, currency FROM transactions WHERE (sent_from = %s OR sent_to = %s) AND sent_at > NOW() - '1 week'::interval ORDER BY sent_at DESC LIMIT 5""", (sender, sender))

@@ -1,9 +1,14 @@
 BEGIN;
 
+CREATE TABLE accounts (
+  account_name TEXT PRIMARY KEY,
+  created_at TIMESTAMP NOT NULL DEFAULT 'now'
+);
+
 CREATE TABLE trusts (
   trustor TEXT NOT NULL,
   trustee TEXT NOT NULL,
-  amount DECIMAL NOT NULL,
+  amount DECIMAL NOT NULL CHECK (amount > 0),
   currency TEXT NOT NULL,
   PRIMARY KEY (trustor, trustee, currency)
 );
@@ -11,7 +16,7 @@ CREATE TABLE trusts (
 CREATE TABLE debts (
   debt_from TEXT NOT NULL,
   debt_to TEXT NOT NULL,
-  amount DECIMAL NOT NULL,
+  amount DECIMAL NOT NULL CHECK (amount > 0),
   currency TEXT NOT NULL,
   PRIMARY KEY (debt_from, debt_to, currency)
 );
@@ -28,7 +33,7 @@ CREATE TABLE transactions (
   transaction_id SERIAL PRIMARY KEY,
   sent_from TEXT NOT NULL,
   sent_to TEXT NOT NULL,
-  amount DECIMAL NOT NULL,
+  amount DECIMAL NOT NULL CHECK (amount > 0),
   currency TEXT NOT NULL,
   sent_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT 'now'
 );
