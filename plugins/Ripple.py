@@ -61,25 +61,23 @@ class RipplePlugin:
             self.cur.execute("""UPDATE trusts SET amount = amount + %s WHERE trustor = %s AND trustee = %s AND currency = %s""", (amount, trustor, trustee, currency))
         else:
             self.cur.execute("""INSERT INTO trusts (trustor, trustee, amount, currency) VALUES (%s, %s, %s, %s)""", (trustor, trustee, amount, currency))
+        self.cur.execute("""INSERT INTO trust_changes (trustor, trustee, changed_by, currency) VALUES (%s, %s, %s, %s)""", (trustor, trustee, amount, currency))
         self.conn.commit()
     
     def reduce_trust(self, trustor, trustee, amount, currency):
-        self.cur.execute("""SELECT amount FROM trusts WHERE trustor = %s AND trustee = %s AND currency = %s""", (currency, expand_set))
+        self.cur.execute("""SELECT amount FROM trusts WHERE trustor = %s AND trustee = %s AND currency = %s""", (trustor, trustee, currency))
         row = self.cur.fetchone()
         if row:
             if row[0] >= amount:
                 self.conn.commit()
                 self.cur.execute("""UPDATE trusts SET amount = amount - %s WHERE trustor = %s AND trustee = %s AND currency = %s""", (amount, trustor, trustee, currency))
+                self.cur.execute("""INSERT INTO trust_changes (trustor, trustee, changed_by, currency) VALUES (%s, %s, %s, %s)""", (trustor, trustee, amount, currency))
                 self.send_pm(sender, "Reduced trust in %s by %f" % (recipient, amount))
             else:
-                self.delete_trust(trustor, trustee, currency)
-        else:
-            self.delete_trust(trustor, trustee, currency)
-    
-    def delete_trust(self, trustor, trustee, currency):
-        self.cur.execute("""DELETE FROM trusts WHERE trustor = %s AND trustee = %s AND currency = %s""", (trustor, trustee, currency))
-        self.conn.commit()
-        self.send_pm(sender, "Revoked trust in %s" % (recipient))
+                self.cur.execute("""INSERT INTO trust_changes (trustor, trustee, changed_by, currency) VALUES (%s, %s, %s, %s)""", (trustor, trustee, -row[0], currency))
+                self.cur.execute("""DELETE FROM trusts WHERE trustor = %s AND trustee = %s AND currency = %s""", (trustor, trustee, currency))
+                self.conn.commit()
+                self.send_pm(sender, "Revoked trust in %s" % (recipient))
     
     def send_payment(self, sender, recipient, amount, currency):
         paths = self.find_paths(sender, recipient, amount, currency)
@@ -87,7 +85,7 @@ class RipplePlugin:
         for pair in paths:
             total_amount += pair[1]
         if total_amount == amount:
-            self.transact_paths(paths, currency)
+            self.transact_paths(sender, recipient, amount, paths, currency)
             self.send_pm(sender, "Sent %0.2f to %s" % (amount, recipient))
         else:
             self.send_pm(sender, "Could not send payment of %0.2f%s to %s, maximum is %0.2f%s" % (amount, currency, recipient, total_amount, currency))
@@ -177,13 +175,22 @@ class RipplePlugin:
         print (from_account, to_account, currency, trusted_amount, back_owed, already_used)
         return max(0, trusted_amount + back_owed - already_used)
     
-    def transact_paths(self, paths, currency):
-        for pair in paths:
+    def transact_paths(self, sender, recipient, amount, paths, currency):
+        # Log record
+        self.cur.execute("""INSERT INTO transactions (sent_from, sent_to, amount, currency) VALUES (%s, %s, %s, %s) RETURNING transaction_id""", (sender, recipient, amount, currency))
+        transaction_id = self.cur.fetchone()[0]
+        
+        for path_id, pair in enumerate(paths):
             print pair
             path = pair[0]
             amount = pair[1]
+            
+            # Record path log record
+            self.cur.execute("""INSERT INTO transaction_paths (transaction_id, path_id, path, amount) VALUES (%s, %s, %s, %s)""", (transaction_id, path_id, path, amount))
+            
             from_account = path[0]
             for to_account in path[1:]:
+                self.cur.execute("""INSERT INTO shifts (transaction_id, path_id, from_account, to_account)   VALUES (%s, %s, %s, %s)""", (transaction_id, path_id, from_account, to_account))
                 self.shift_amount_pair(from_account, to_account, amount, currency)
                 from_account = to_account
         self.conn.commit()
