@@ -17,9 +17,10 @@ class RipplePlugin:
     
     def chat_received(self, packet):
         try:
-            msg = packet.data['text'].lower()
+            msg = packet.data['text']
             msg = re.sub('\xa7.', '', msg)
-            match = re.search('^([A-Za-z0-9]+) whispers ([A-Za-z0-9]+)(.*)', msg)
+            match = re.search('^From ([A-Za-z0-9]+): ([A-Za-z0-9]+)(.*)', msg)
+            #match = re.search('^([A-Za-z0-9]+) whispers ([A-Za-z0-9]+)(.*)', msg)
             if match:
                 self.cur = self.conn.cursor()
                 sender = match.group(1)
@@ -176,12 +177,12 @@ class RipplePlugin:
                 self.conn.commit()
                 self.cur.execute("""UPDATE trusts SET amount = amount - %s WHERE trustor = %s AND trustee = %s AND currency = %s""", (amount, trustor, trustee, currency))
                 self.cur.execute("""INSERT INTO trust_changes (trustor, trustee, changed_by, currency) VALUES (%s, %s, %s, %s)""", (trustor, trustee, amount, currency))
-                self.send_pm(sender, "Reduced trust in %s by %f" % (recipient, amount))
+                self.send_pm(trustor, "Reduced trust in %s by %f" % (trustee, amount))
             else:
                 self.cur.execute("""INSERT INTO trust_changes (trustor, trustee, changed_by, currency) VALUES (%s, %s, %s, %s)""", (trustor, trustee, -row[0], currency))
                 self.cur.execute("""DELETE FROM trusts WHERE trustor = %s AND trustee = %s AND currency = %s""", (trustor, trustee, currency))
                 self.conn.commit()
-                self.send_pm(sender, "Revoked trust in %s" % (recipient))
+                self.send_pm(trustor, "Revoked trust in %s" % (trustee))
     
     def send_payment(self, sender, recipient, amount, currency):
         paths = self.find_paths(sender, recipient, amount, currency)
