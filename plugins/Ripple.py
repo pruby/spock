@@ -68,19 +68,6 @@ class RipplePlugin:
                             self.send_pm(sender, "You can only pay a positive amount. Nice try :)")
                     else:
                         self.send_pm(sender, "Usage: pay <person> <amount>d")
-                elif command == 'payas':
-                    arg_match = re.search('^ ([A-Za-z0-9]+) ([A-Za-z0-9]+) ([0-9]+(?:\.[0-9]{1,2})?)([di])', remaining)
-                    if arg_match:
-                        sender = arg_match.group(1)
-                        recipient = arg_match.group(2)
-                        amount = Decimal(arg_match.group(3))
-                        if amount > 0:
-                            if self.check_account(sender, sender) and self.check_account(sender, recipient):
-                                self.send_payment(sender, recipient, amount, arg_match.group(4))
-                        else:
-                            self.send_pm(sender, "You can only pay a positive amount. Nice try :)")
-                    else:
-                        self.send_pm(sender, "Usage: pay <person> <amount>d")
                 elif command == 'transactions':
                     arg_match = re.search('^ --all', remaining)
                     if arg_match:
