@@ -19,7 +19,7 @@ class RipplePlugin:
         try:
             msg = packet.data['text']
             msg = re.sub('\xa7.', '', msg)
-            match = re.search('^From ([A-Za-z0-9]+): ([A-Za-z0-9]+)(.*)', msg)
+            match = re.search('^From ([A-Za-z0-9_]+): ([A-Za-z0-9]+)(.*)', msg)
             #match = re.search('^([A-Za-z0-9]+) whispers ([A-Za-z0-9]+)(.*)', msg)
             if match:
                 self.cur = self.conn.cursor()
@@ -32,7 +32,7 @@ class RipplePlugin:
                     else:
                         self.register_account(sender)
                 elif command == 'trust':
-                    arg_match = re.search('^ ([A-Za-z0-9]+) ([0-9]+(?:\.[0-9]{1,2})?)([di])', remaining)
+                    arg_match = re.search('^ ([A-Za-z0-9_]+) ([0-9]+(?:\.[0-9]{1,2})?)([di])', remaining)
                     if arg_match:
                         trustee = arg_match.group(1)
                         if trustee == sender:
@@ -48,7 +48,7 @@ class RipplePlugin:
                     else:
                         self.send_pm(sender, "Usage: trust <person> <amount>d")
                 elif command == 'reducetrust':
-                    arg_match = re.search('^ ([A-Za-z0-9]+) (?:([0-9]+(?:\.[0-9]{1,2})?)([di]))?', remaining)
+                    arg_match = re.search('^ ([A-Za-z0-9_]+) (?:([0-9]+(?:\.[0-9]{1,2})?)([di]))?', remaining)
                     if arg_match:
                         trustee = arg_match.group(1)
                         amount = abs(Decimal(arg_match.group(2)))
@@ -57,7 +57,7 @@ class RipplePlugin:
                     else:
                         self.send_pm(sender, "Usage: reducetrust <person> <amount>d")
                 elif command == 'pay':
-                    arg_match = re.search('^ ([A-Za-z0-9]+) ([0-9]+(?:\.[0-9]{1,2})?)([di])', remaining)
+                    arg_match = re.search('^ ([A-Za-z0-9_]+) ([0-9]+(?:\.[0-9]{1,2})?)([di])', remaining)
                     if arg_match:
                         recipient = arg_match.group(1)
                         amount = Decimal(arg_match.group(2))
