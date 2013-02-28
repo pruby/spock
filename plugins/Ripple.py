@@ -44,7 +44,7 @@ class RipplePlugin:
                 remaining = match.group(3)
                 account = self.current_account(sender)
                 if command == 'register':
-                    arg_match = re.search('^ (@[A-Za-z0-9_]+)', remaining)
+                    arg_match = re.search('^ (\+[A-Za-z0-9_]+)', remaining)
                     if arg_match:
                         account = arg_match.group(1)
                     if self.check_account(0, account):
@@ -52,14 +52,14 @@ class RipplePlugin:
                     else:
                         self.register_account(sender, account)
                 elif command == 'use':
-                    arg_match = re.search('^ (@[A-Za-z0-9_]+)', remaining)
+                    arg_match = re.search('^ (\+[A-Za-z0-9_]+)', remaining)
                     if arg_match:
                         account = arg_match.group(1)
                         self.switch_account(sender, account)
                     elif remaining == '':
                         self.switch_account(sender, sender)
                     else:
-                        self.send_pm(sender, "Usage: account [@<group>]")
+                        self.send_pm(sender, "Usage: account [+<group>]")
                 elif command == 'addmanager':
                     arg_match = re.search('^ ([A-Za-z0-9_]+)', remaining)
                     if account == sender:
@@ -82,7 +82,7 @@ class RipplePlugin:
                     else:
                         self.send_pm(sender, "Usage: grant [<group>]")
                 elif command == 'trust':
-                    arg_match = re.search('^ (@?[A-Za-z0-9_]+) ([0-9]+(?:\.[0-9]{1,2})?)([a-z]+)', remaining)
+                    arg_match = re.search('^ (\+?[A-Za-z0-9_]+) ([0-9]+(?:\.[0-9]{1,2})?)([a-z]+)', remaining)
                     if arg_match:
                         trustee = arg_match.group(1)
                         if trustee == account:
@@ -103,7 +103,7 @@ class RipplePlugin:
                     else:
                         self.send_pm(sender, "Usage: trust <person> <amount><currency>")
                 elif command == 'reducetrust':
-                    arg_match = re.search('^ (@?[A-Za-z0-9_]+) (?:([0-9]+(?:\.[0-9]{1,2})?)([a-z]+))?', remaining)
+                    arg_match = re.search('^ (\+?[A-Za-z0-9_]+) (?:([0-9]+(?:\.[0-9]{1,2})?)([a-z]+))?', remaining)
                     if arg_match:
                         trustee = arg_match.group(1)
                         amount = abs(Decimal(arg_match.group(2)))
@@ -117,7 +117,7 @@ class RipplePlugin:
                     else:
                         self.send_pm(sender, "Usage: reducetrust <person> <amount>d")
                 elif command == 'pay':
-                    arg_match = re.search('^ (@?[A-Za-z0-9_]+) ([0-9]+(?:\.[0-9]{1,2})?)([a-z]+)', remaining)
+                    arg_match = re.search('^ (\+?[A-Za-z0-9_]+) ([0-9]+(?:\.[0-9]{1,2})?)([a-z]+)', remaining)
                     if arg_match:
                         recipient = arg_match.group(1)
                         amount = Decimal(arg_match.group(2))
@@ -147,12 +147,12 @@ class RipplePlugin:
                     if self.check_account(sender, account):
                         self.show_trusts(sender)
                 elif command == 'groupinfo':
-                    arg_match = re.search('^ (@[A-Za-z0-9_]+)', remaining)
+                    arg_match = re.search('^ (\+[A-Za-z0-9_]+)', remaining)
                     if arg_match:
                         account = arg_match.group(1)
                         self.group_info(sender, account)
                     else:
-                        self.send_pm(sender, "Usage: groupinfo @<group>")
+                        self.send_pm(sender, "Usage: groupinfo +<group>")
                 elif command == 'trustsme':
                     if self.check_account(sender, account):
                         self.show_trustsme(sender)
