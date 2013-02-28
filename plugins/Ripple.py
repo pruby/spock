@@ -2,7 +2,7 @@ import psycopg2
 import re
 import traceback
 from sets import Set
-from ripplelogin import dbname, dbuser, dbpass
+from ripplelogin import dbname, dbuser, dbpass, maximumPath
 from spock.mcp.mcpacket import Packet
 from decimal import *
 
@@ -14,6 +14,7 @@ class RipplePlugin:
         self.conn.commit()
         self.client = client
         self.current_accounts = {}
+        self.maximum_path = maximumPath
         client.register_dispatch(self.chat_received, 0x03)
         client.register_dispatch(self.player_list_update, 0xC9)
     
@@ -384,8 +385,9 @@ class RipplePlugin:
                         elif link[1] not in path:
                             new_path = path[:]
                             new_path.append(link[1])
-                            next_paths.append(new_path)
-                            next_nodes.add(link[1])
+                            if len(new_path) < self.maximum_path:
+                                next_paths.append(new_path)
+                                next_nodes.add(link[1])
             expand_set = next_nodes
             edge_paths = next_paths
         return paths
