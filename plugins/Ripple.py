@@ -224,11 +224,13 @@ class RipplePlugin:
     
     def add_manager(self, invoker, group, new_manager):
         self.cur.execute("""INSERT INTO account_managers (account_name, minecraft_name) VALUES (%s, %s)""", (group, new_manager))
+        self.conn.commit()
         self.send_pm(invoker, "Made %s a manager of %s" % (new_manager, group))
     
     def remove_manager(self, invoker, group, ex_manager):
         if ex_manager in self.group_managers(group):
             self.cur.execute("""DELETE FROM account_managers WHERE account_name = %s AND minecraft_name = %s""", (group, ex_manager))
+            self.conn.commit()
             self.send_pm(invoker, "%s is no longer a manager of %s" % (ex_manager, group))
         else:
             self.send_pm(invoker, "%s is not a manager of %s" % (ex_manager, group))
