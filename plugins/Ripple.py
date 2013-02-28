@@ -81,6 +81,9 @@ class RipplePlugin:
                 elif command == 'trusts':
                     if self.check_account(sender, sender):
                         self.show_trusts(sender)
+                elif command == 'trustsme':
+                    if self.check_account(sender, sender):
+                        self.show_trustsme(sender)
                 elif command == 'debts':
                     if self.check_account(sender, sender):
                         self.show_debts(sender)
@@ -98,7 +101,11 @@ class RipplePlugin:
                 pass
     
     def send_pm(self, user, message):
-        self.client.push(Packet(ident=0x03, data={'text':"/msg %s %s" % (user, message)}))
+        lengthLimit = 100
+        prefix = "/msg %s " % (user,)
+        chunkSize = lengthLimit - len(prefix)
+        for i in xrange(0, length(message), chunkSize):
+            self.client.push(Packet(ident=0x03, data={'text':prefix + message[i:min(i+chunkSize,strlen(message)-1)]}))
         
     def check_account(self, invoker, account):
         self.cur.execute("""SELECT 1 FROM accounts WHERE account_name = (%s)""", (account,))
@@ -115,6 +122,13 @@ class RipplePlugin:
         for row in self.cur.fetchall():
             trusts.append("%s (%0.2f%s)" % row)
         self.send_pm(account, "You trust: " + ', '.join(trusts))
+        
+    def show_trustsme(self, account):
+        self.cur.execute("""SELECT trustor, amount, currency FROM trusts WHERE trustee = %s ORDER BY trustee""", (account,))
+        trusts = []
+        for row in self.cur.fetchall():
+            trusts.append("%s (%0.2f%s)" % row)
+        self.send_pm(account, "You are trusted by: " + ', '.join(trusts))
         
     def show_debts(self, account):
         self.cur.execute("""SELECT debt_to, amount, currency FROM debts WHERE debt_from = %s ORDER BY debt_to""", (account,))
@@ -134,7 +148,7 @@ class RipplePlugin:
         self.cur.execute("""INSERT INTO accounts (account_name) VALUES (%s)""", (sender,))
         self.conn.commit()
         self.send_pm(sender, "Ripple account registered. You may now use this in-game ripple pay system.")
-        self.send_pm(sender, "The network operator gives no guarantees and takes no responsibility for errors whatsoever.")
+        self.send_pm(sender, "The network is run on a best-effort approach. No guarantees, no liability.")
     
     def show_direct_transactions(self, sender):
         self.cur.execute("""SELECT sent_at, sent_from, sent_to, amount, currency FROM transactions WHERE (sent_from = %s OR sent_to = %s) AND sent_at > NOW() - '1 week'::interval ORDER BY sent_at DESC LIMIT 5""", (sender, sender))
