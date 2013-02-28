@@ -5,6 +5,11 @@ CREATE TABLE accounts (
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE account_managers (
+  account_name TEXT NOT NULL REFERENCES accounts,
+  minecraft_name TEXT NOT NULL
+);
+
 CREATE TABLE currencies (
   currency_name TEXT PRIMARY KEY,
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -41,6 +46,7 @@ CREATE TABLE transactions (
   sent_to TEXT NOT NULL REFERENCES accounts,
   amount DECIMAL NOT NULL CHECK (amount > 0),
   currency TEXT NOT NULL REFERENCES currencies,
+  invoker TEXT NOT NULL,
   sent_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
