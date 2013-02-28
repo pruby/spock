@@ -51,7 +51,7 @@ class RipplePlugin:
                         self.send_pm(sender, "That account is already registered :)")
                     else:
                         self.register_account(sender, account)
-                elif command == 'account':
+                elif command == 'use':
                     arg_match = re.search('^ (@[A-Za-z0-9_]+)', remaining)
                     if arg_match:
                         account = arg_match.group(1)
@@ -156,6 +156,8 @@ class RipplePlugin:
                 elif command == 'trustsme':
                     if self.check_account(sender, account):
                         self.show_trustsme(sender)
+                elif command == 'accounts':
+                    self.show_accounts(sender)
                 elif command == 'debts':
                     if self.check_account(sender, account):
                         self.show_debts(sender)
@@ -234,6 +236,13 @@ class RipplePlugin:
     def group_info(self, invoker, group):
         managers = self.group_managers(group)
         self.send_pm(invoker, group + " is managed by: " + ', '.join(managers))
+        
+    def show_accounts(self, invoker):
+        self.cur.execute("""SELECT account_name FROM account_managers WHERE minecraft_name = %s ORDER BY account_name""", (invoker,))
+        accounts = []
+        for row in self.cur.fetchall():
+            accounts.append(row[0])
+        self.send_pm(invoker, "You manage: " + ', '.join(accounts))
         
     def show_trustsme(self, invoker):
         account = self.current_account(invoker)
