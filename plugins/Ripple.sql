@@ -5,36 +5,42 @@ CREATE TABLE accounts (
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE currencies (
+  currency_name TEXT PRIMARY KEY,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+INSERT INTO CURRENCIES (currency_name) VALUES ('d'), ('i');
+
 CREATE TABLE trusts (
-  trustor TEXT NOT NULL,
-  trustee TEXT NOT NULL,
+  trustor TEXT NOT NULL REFERENCES accounts,
+  trustee TEXT NOT NULL REFERENCES accounts,
   amount DECIMAL NOT NULL CHECK (amount >= 0),
-  currency TEXT NOT NULL,
+  currency TEXT NOT NULL REFERENCES currencies,
   PRIMARY KEY (trustor, trustee, currency)
 );
 
 CREATE TABLE debts (
-  debt_from TEXT NOT NULL,
-  debt_to TEXT NOT NULL,
+  debt_from TEXT NOT NULL REFERENCES accounts,
+  debt_to TEXT NOT NULL REFERENCES accounts,
   amount DECIMAL NOT NULL CHECK (amount >= 0),
-  currency TEXT NOT NULL,
+  currency TEXT NOT NULL REFERENCES currencies,
   PRIMARY KEY (debt_from, debt_to, currency)
 );
 
 CREATE TABLE trust_changes (
-  trustor TEXT NOT NULL,
-  trustee TEXT NOT NULL,
+  trustor TEXT NOT NULL REFERENCES accounts,
+  trustee TEXT NOT NULL REFERENCES accounts,
   changed_by DECIMAL NOT NULL,
-  currency TEXT NOT NULL,
+  currency TEXT NOT NULL REFERENCES currencies,
   changed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE transactions (
   transaction_id SERIAL PRIMARY KEY,
-  sent_from TEXT NOT NULL,
-  sent_to TEXT NOT NULL,
+  sent_from TEXT NOT NULL REFERENCES accounts,
+  sent_to TEXT NOT NULL REFERENCES accounts,
   amount DECIMAL NOT NULL CHECK (amount > 0),
-  currency TEXT NOT NULL,
+  currency TEXT NOT NULL REFERENCES currencies,
   sent_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 

@@ -32,42 +32,57 @@ class RipplePlugin:
                     else:
                         self.register_account(sender)
                 elif command == 'trust':
-                    arg_match = re.search('^ ([A-Za-z0-9_]+) ([0-9]+(?:\.[0-9]{1,2})?)([di])', remaining)
+                    arg_match = re.search('^ ([A-Za-z0-9_]+) ([0-9]+(?:\.[0-9]{1,2})?)([a-z]+)', remaining)
                     if arg_match:
                         trustee = arg_match.group(1)
                         if trustee == sender:
                             self.send_pm(sender, "You can't loan yourself money")
                         else:
                             amount = Decimal(arg_match.group(2))
+                            currency = arg_match.group(3)
                             if amount > 0:
-                                if self.check_account(sender, sender) and self.check_account(sender, trustee):
-                                    self.add_trust(sender, trustee, amount, arg_match.group(3))
+                                if not (self.check_account(sender, sender) and self.check_account(sender, trustee)):
+                                    pass
+                                elif not self.check_currency(sender, currency):
+                                    pass
+                                else:
+                                    self.add_trust(sender, trustee, amount, currency)
                                     self.show_trusts(sender)
                             else:
                                 self.send_pm(sender, "You can only trust a positive amount. Nice try :)")
                     else:
-                        self.send_pm(sender, "Usage: trust <person> <amount>d")
+                        self.send_pm(sender, "Usage: trust <person> <amount><currency>")
                 elif command == 'reducetrust':
-                    arg_match = re.search('^ ([A-Za-z0-9_]+) (?:([0-9]+(?:\.[0-9]{1,2})?)([di]))?', remaining)
+                    arg_match = re.search('^ ([A-Za-z0-9_]+) (?:([0-9]+(?:\.[0-9]{1,2})?)([a-z]+))?', remaining)
                     if arg_match:
                         trustee = arg_match.group(1)
                         amount = abs(Decimal(arg_match.group(2)))
-                        if self.check_account(sender, sender) and self.check_account(sender, trustee):
-                            self.reduce_trust(sender, trustee, amount, arg_match.group(3))
+                        currency = arg_match.group(3)
+                        if not (self.check_account(sender, sender) and self.check_account(sender, trustee)):
+                            pass
+                        elif not self.check_currency(sender, currency):
+                            pass
+                        else:
+                            self.reduce_trust(sender, trustee, amount, currency)
                     else:
                         self.send_pm(sender, "Usage: reducetrust <person> <amount>d")
                 elif command == 'pay':
-                    arg_match = re.search('^ ([A-Za-z0-9_]+) ([0-9]+(?:\.[0-9]{1,2})?)([di])', remaining)
+                    arg_match = re.search('^ ([A-Za-z0-9_]+) ([0-9]+(?:\.[0-9]{1,2})?)([a-z]+)', remaining)
                     if arg_match:
                         recipient = arg_match.group(1)
                         amount = Decimal(arg_match.group(2))
+                        currency = arg_match.group(3)
                         if amount > 0:
-                            if self.check_account(sender, sender) and self.check_account(sender, recipient):
-                                self.send_payment(sender, recipient, amount, arg_match.group(3))
+                            if not (self.check_account(sender, sender) and self.check_account(sender, recipient)):
+                                pass
+                            elif not self.check_currency(sender, currency):
+                                pass
+                            else:
+                                self.send_payment(sender, recipient, amount, currency)
                         else:
                             self.send_pm(sender, "You can only pay a positive amount. Nice try :)")
                     else:
-                        self.send_pm(sender, "Usage: pay <person> <amount>d")
+                        self.send_pm(sender, "Usage: pay <person> <amount><currency>")
                 elif command == 'transactions':
                     arg_match = re.search('^ --all', remaining)
                     if arg_match:
@@ -104,8 +119,8 @@ class RipplePlugin:
         lengthLimit = 100
         prefix = "/msg %s " % (user,)
         chunkSize = lengthLimit - len(prefix)
-        for i in xrange(0, length(message), chunkSize):
-            self.client.push(Packet(ident=0x03, data={'text':prefix + message[i:min(i+chunkSize,strlen(message)-1)]}))
+        for i in xrange(0, len(message) - 1, chunkSize):
+            self.client.push(Packet(ident=0x03, data={'text':prefix + message[i:min(i+chunkSize,len(message))]}))
         
     def check_account(self, invoker, account):
         self.cur.execute("""SELECT 1 FROM accounts WHERE account_name = (%s)""", (account,))
@@ -113,6 +128,15 @@ class RipplePlugin:
         if not row:
             if invoker:
                 self.send_pm(invoker, "%s has not registered for ripple pay" % (account,))
+            return 0
+        return 1
+        
+    def check_currency(self, invoker, currency):
+        self.cur.execute("""SELECT 1 FROM currencies WHERE currency_name = (%s)""", (currency,))
+        row = self.cur.fetchone()
+        if not row:
+            if invoker:
+                self.send_pm(invoker, "%s is not a registered currency" % (currency,))
             return 0
         return 1
         
