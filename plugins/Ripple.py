@@ -15,6 +15,22 @@ class RipplePlugin:
         self.client = client
         self.current_accounts = {}
         client.register_dispatch(self.chat_received, 0x03)
+        client.register_dispatch(self.player_list_update, 0xC9)
+    
+    def player_list_update(self, packet):
+        try:
+            # Delete current account entry on logout
+            if packet.data['online'] == False:
+                player = packet.data['player_name']
+                if player in self.current_accounts:
+                    del self.current_accounts[player]
+        except Exception as error:
+            print "Error handling command %s: %s" % (msg, error)
+            print traceback.format_exc()
+            try:
+                self.conn.rollback()
+            except:
+                pass
     
     def chat_received(self, packet):
         try:
@@ -146,6 +162,8 @@ class RipplePlugin:
                 elif command == 'owed':
                     if self.check_account(sender, account):
                         self.show_owed(sender)
+                elif command == 'whoami':
+                    self.send_pm(sender, "Using account %s" % (account,))
                 else:
                     self.send_pm(sender, "Command not understood: %s" % (command))
         except Exception as error:
