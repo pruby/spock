@@ -2,9 +2,10 @@ import psycopg2
 import re
 import traceback
 from sets import Set
-from ripplelogin import dbname, dbuser, dbpass, maximumPath
+from ripplelogin import dbname, dbuser, dbpass, maximumPath, lineDelay
 from spock.mcp.mcpacket import Packet
 from decimal import *
+from time import sleep
 
 class RipplePlugin:
     def __init__(self, client):
@@ -14,7 +15,6 @@ class RipplePlugin:
         self.conn.commit()
         self.client = client
         self.current_accounts = {}
-        self.maximum_path = maximumPath
         client.register_dispatch(self.chat_received, 0x03)
         client.register_dispatch(self.player_list_update, 0xC9)
     
@@ -191,6 +191,7 @@ class RipplePlugin:
         chunkSize = lengthLimit - len(prefix)
         for i in xrange(0, len(message) - 1, chunkSize):
             self.client.push(Packet(ident=0x03, data={'text':prefix + message[i:min(i+chunkSize,len(message))]}))
+            sleep(lineDelay)
         
     def check_account(self, invoker, account):
         self.cur.execute("""SELECT 1 FROM accounts WHERE account_name = (%s)""", (account,))
@@ -387,7 +388,7 @@ class RipplePlugin:
                         elif link[1] not in path:
                             new_path = path[:]
                             new_path.append(link[1])
-                            if len(new_path) < self.maximum_path:
+                            if len(new_path) < maximumPath:
                                 next_paths.append(new_path)
                                 next_nodes.add(link[1])
             expand_set = next_nodes
