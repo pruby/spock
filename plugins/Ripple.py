@@ -44,7 +44,9 @@ class RipplePlugin:
                 command = match.group(2)
                 remaining = match.group(3)
                 account = self.current_account(sender)
-                if command == 'register':
+                if command == 'help':
+                    self.send_pm(sender, "See http://tinyurl.com/mcripple for help")
+                elif command == 'register':
                     arg_match = re.search('^ (\+[A-Za-z0-9_]+)', remaining)
                     if arg_match:
                         account = arg_match.group(1)
