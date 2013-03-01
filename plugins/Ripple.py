@@ -296,7 +296,7 @@ class RipplePlugin:
     
     def show_all_transactions(self, invoker):
         account = self.current_account(invoker)
-        self.cur.execute("""SELECT DISTINCT transaction_paths.transaction_id, transactions.sent_at, transaction_paths.amount, transactions.currency, transaction_paths.path FROM shifts JOIN transaction_paths USING (transaction_id, path_id) JOIN transactions ON (shifts.transaction_id = transactions.transaction_id) WHERE from_account = %s OR to_account = %s AND sent_at > NOW() - '1 week'::interval ORDER BY sent_at DESC LIMIT 10""", (account,account))
+        self.cur.execute("""SELECT DISTINCT transaction_paths.transaction_id, transactions.sent_at, transaction_paths.amount, transactions.currency, transaction_paths.path FROM shifts JOIN transaction_paths USING (transaction_id, path_id) JOIN transactions ON (shifts.transaction_id = transactions.transaction_id) WHERE from_account = %s OR to_account = %s AND sent_at > NOW() - '1 week'::interval ORDER BY sent_at DESC LIMIT 5""", (account,account))
         for row in self.cur.fetchall():
             self.send_pm(invoker, "[%s] sent %0.2f%s through (%s)" % (row[1].strftime("%Y-%m-%d %H:%M:%S"), row[2], row[3], ', '.join(row[4])))
     
