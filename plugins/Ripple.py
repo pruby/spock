@@ -50,6 +50,10 @@ class RipplePlugin:
                     arg_match = re.search('^ (\+[A-Za-z0-9_]+)', remaining)
                     if arg_match:
                         account = arg_match.group(1)
+                        if self.check_account(0, account):
+                            self.send_pm(sender, "That account is already registered :)")
+                        else:
+                            self.register_account(sender, account)
                     elif remaining == '':
                         if self.check_account(0, account):
                             self.send_pm(sender, "That account is already registered :)")
