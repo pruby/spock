@@ -143,6 +143,23 @@ class RipplePlugin:
                             self.send_pm(sender, "You can only pay a positive amount. Nice try :)")
                     else:
                         self.send_pm(sender, "Usage: pay <person> <amount><currency>")
+                elif command == 'refuse':
+                    arg_match = re.search('^ (\+?[A-Za-z0-9_]+) ([0-9]+(?:\.[0-9]{1,2})?)([a-z]+)', remaining)
+                    if arg_match:
+                        recipient = arg_match.group(1)
+                        amount = Decimal(arg_match.group(2))
+                        currency = arg_match.group(3)
+                        if amount > 0:
+                            if not (self.check_account(sender, account) and self.check_account(sender, recipient)):
+                                pass
+                            elif not self.check_currency(sender, currency):
+                                pass
+                            else:
+                                self.refuse_debt(sender, recipient, amount, currency)
+                        else:
+                            self.send_pm(sender, "You can only refuse a positive amount. Nice try :)")
+                    else:
+                        self.send_pm(sender, "Usage: refuse <person> <amount><currency>")
                 elif command == 'transactions':
                     arg_match = re.search('^ --all', remaining)
                     if arg_match:
@@ -156,6 +173,9 @@ class RipplePlugin:
                 elif command == 'trusts':
                     if self.check_account(sender, account):
                         self.show_trusts(sender)
+                elif command == 'refusals':
+                    if self.check_account(sender, account):
+                        self.show_refusals(sender)
                 elif command == 'groupinfo':
                     arg_match = re.search('^ (\+[A-Za-z0-9_]+)', remaining)
                     if arg_match:
@@ -225,6 +245,12 @@ class RipplePlugin:
         for row in self.cur.fetchall():
             trusts.append("%s (%0.2f%s)" % row)
         self.send_pm(invoker, account + " trusts: " + ', '.join(trusts))
+        
+    def show_refusals(self, invoker):
+        account = self.current_account(invoker)
+        self.cur.execute("""SELECT refused_at, trustee, amount, currency FROM refusals WHERE trustor = %s ORDER BY refused_at DESC LIMIT 5""", (account,))
+        for row in self.cur.fetchall():
+            self.send_pm(invoker, "[%s] %s refused to pay %s%s" % (row[0].strftime("%Y-%m-%d %H:%M:%S"), row[1], row[2], row[3]))
     
     def group_managers(self, group):
         self.cur.execute("""SELECT minecraft_name FROM account_managers WHERE account_name = %s ORDER BY minecraft_name""", (group,))
@@ -354,10 +380,28 @@ class RipplePlugin:
         else:
             self.send_pm(invoker, "Could not send payment of %0.2f%s to %s, maximum is %0.2f%s" % (amount, currency, recipient, total_amount, currency))
     
-    def reject_owed(self, trustee, trustor, amount, currency):
-        # TODO: Reject a debt owed by someone who trusts you
-        # Creates permanent record and destroys trust link
-        pass
+    def refuse_debt(self, invoker, trustor, amount, currency):
+        account = self.current_account(invoker)
+        self.cur.execute("""SELECT amount FROM debts WHERE debt_from = %s AND debt_to = %s AND currency = %s""", (account, trustor, currency))
+        rows = self.cur.fetchall()
+        if rows:
+            owed_amount = rows[0][0]
+            if owed_amount >= amount:
+                self.cur.execute("""INSERT INTO refusals (trustor, trustee, amount, currency) VALUES (%s, %s, %s, %s)""", (trustor, account, amount, currency))
+                if owed_amount > amount:
+                    self.cur.execute("""UPDATE debts SET amount = amount - %s WHERE debt_from = %s AND debt_to = %s AND currency = %s""", (amount, account, trustor, currency))
+                else:
+                    self.cur.execute("""DELETE FROM debts WHERE debt_from = %s AND debt_to = %s AND currency = %s""", (account, trustor, currency))
+                self.send_pm(invoker, "You have refused a debt of %s%s to %s" % (amount, currency, trustor))
+                for manager in self.group_managers(trustor):
+                    if manager == trustor:
+                        self.send_pm(manager, "%s has refused a debt of %s%s to you" % (account, amount, currency))
+                    else:
+                        self.send_pm(manager, "%s has refused a debt of %s%s to %s" % (account, amount, currency, trustor))
+            else:
+                send_pm(invoker, "You do not directly owe %s%s to %s. Try %s%s." % (amount, currency, trustor, owed_amount, currency))
+        else:
+            send_pm(invoker, "You do not directly owe %s to %s" % (currency, trustor))
     
     def find_paths(self, sender, recipient, amount, currency):
         expand_set = Set([sender])

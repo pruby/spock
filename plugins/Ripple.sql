@@ -10,6 +10,14 @@ CREATE TABLE account_managers (
   minecraft_name TEXT NOT NULL
 );
 
+CREATE TABLE refusals (
+  trustor TEXT NOT NULL REFERENCES accounts,
+  trustee TEXT NOT NULL REFERENCES accounts,
+  amount DECIMAN NOT NULL CHECK (amount >= 0),
+  currency TEXT NOT NULL REFERENCES currencies,
+  refused_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE currencies (
   currency_name TEXT PRIMARY KEY,
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
