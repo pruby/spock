@@ -13,7 +13,7 @@ CREATE TABLE account_managers (
 CREATE TABLE api_keys (
   key_id TEXT NOT NULL PRIMARY KEY,
   secret TEXT NOT NULL,
-  minecraft_name TEXT NOT NULL,
+  account_name TEXT NOT NULL REFERENCES accounts,
   access_type TEXT NOT NULL CHECK (access_type IN ('read', 'write')),
   UNIQUE (minecraft_name, description)
 );
