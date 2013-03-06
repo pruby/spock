@@ -405,6 +405,7 @@ class RipplePlugin:
             owed_amount = rows[0][0]
             if owed_amount >= amount:
                 self.cur.execute("""INSERT INTO refusals (trustor, trustee, amount, currency) VALUES (%s, %s, %s, %s)""", (trustor, account, amount, currency))
+                self.cur.execute("""DELETE FROM trusts WHERE trustor = %s AND trustee = %s and currency = %s""", (trustor, account, currency))
                 if owed_amount > amount:
                     self.cur.execute("""UPDATE debts SET amount = amount - %s WHERE debt_from = %s AND debt_to = %s AND currency = %s""", (amount, account, trustor, currency))
                 else:
