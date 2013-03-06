@@ -10,6 +10,15 @@ CREATE TABLE account_managers (
   minecraft_name TEXT NOT NULL
 );
 
+CREATE TABLE api_keys (
+  key_id TEXT NOT NULL PRIMARY KEY,
+  secret TEXT NOT NULL,
+  minecraft_name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  access_type TEXT NOT NULL CHECK (access_type IN ('read', 'write')),
+  UNIQUE (minecraft_name, description)
+);
+
 CREATE TABLE refusals (
   trustor TEXT NOT NULL REFERENCES accounts,
   trustee TEXT NOT NULL REFERENCES accounts,

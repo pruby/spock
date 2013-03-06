@@ -196,6 +196,23 @@ class RipplePlugin:
                         self.show_owed(sender)
                 elif command == 'whoami':
                     self.send_pm(sender, "Using account %s" % (account,))
+                elif command == 'apiadd':
+                    arg_match = re.search('^ (\+[A-Za-z0-9_]+) (\+[A-Za-z0-9_]+)', remaining)
+                    if arg_match:
+                        key_id = arg_match.group(1)
+                        secret = arg_match.group(2)
+                        self.add_api_key(invoker, key_id, secret)
+                    else:
+                        self.send_pm(sender, "Usage: apiadd <key id> <secret>")
+                elif command == 'apidel':
+                    arg_match = re.search('^ (\+[A-Za-z0-9_]+)', remaining)
+                    if arg_match:
+                        key_id = arg_match.group(1)
+                        self.delete_api_key(invoker, key_id)
+                    else:
+                        self.send_pm(sender, "Usage: apidel <key id>")
+                elif command == 'apikeys':
+                    self.list_api_keys(invoker)
                 else:
                     self.send_pm(sender, "Command not understood: %s" % (command))
         except Exception as error:
@@ -522,3 +539,28 @@ class RipplePlugin:
                 self.cur.execute("""UPDATE debts SET amount = amount + %s WHERE debt_from = %s AND debt_to = %s AND currency = %s""", (amount, from_account, to_account, currency))
             else:
                 self.cur.execute("""INSERT INTO debts (debt_from, debt_to, amount, currency) VALUES (%s, %s, %s, %s)""", (from_account, to_account, amount, currency))
+    
+    def add_api_key(invoker, key_id, secret):
+        self.cur.execute("""SELECT 1 FROM api_keys WHERE key_id = %s""", (key_id,))
+        row = self.cur.fetchone()
+        if row:
+            self.send_pm(invoker, "A key with that ID already exists. Please choose a different ID.")
+        else:
+            self.cur.execute("""INSERT INTO api_keys (key_id, secret, minecraft_name, access_type) VALUES (%s, %s, %s, %s)""", (key_id, secret, invoker, 'read'))
+            self.send_pm(invoker, "Registered API key %s" % (key_id,))
+    
+    def delete_api_key(invoker, key_id):
+        self.cur.execute("""SELECT 1 FROM api_keys WHERE key_id = %s AND minecraft_name = %s""", (key_id,invoker))
+        row = self.cur.fetchone()
+        if row:
+            self.cur.execute("""DELETE FROM api_keys WHERE key_id = %s AND minecraft_name = %s""", (key_id, invoker))
+            self.send_pm(invoker, "Deleted API key %s" % (key_id,))
+        else:
+            self.send_pm(invoker, "You do not have a key with that ID.")
+    
+    def list_api_keys(invoker):
+        self.cur.execute("""SELECT key_id FROM api_keys WHERE minecraft_name = %s""", (invoker,))
+        keys = []
+        for row in self.cur.fetchall():
+            keys.append(row[0])
+        self.send_pm(invoker, "Active keys: " + ', '.join(keys))
