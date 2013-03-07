@@ -201,18 +201,18 @@ class RipplePlugin:
                     if arg_match:
                         key_id = arg_match.group(1)
                         secret = arg_match.group(2)
-                        self.add_api_key(invoker, key_id, secret)
+                        self.add_api_key(sender, key_id, secret)
                     else:
                         self.send_pm(sender, "Usage: apiadd <key id> <secret>")
                 elif command == 'apidel':
                     arg_match = re.search('^ (\+[A-Za-z0-9_.+]+)', remaining)
                     if arg_match:
                         key_id = arg_match.group(1)
-                        self.delete_api_key(invoker, key_id)
+                        self.delete_api_key(sender, key_id)
                     else:
                         self.send_pm(sender, "Usage: apidel <key id>")
                 elif command == 'apikeys':
-                    self.list_api_keys(invoker)
+                    self.list_api_keys(sender)
                 else:
                     self.send_pm(sender, "Command not understood: %s" % (command))
         except Exception as error:
