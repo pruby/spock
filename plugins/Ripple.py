@@ -197,7 +197,7 @@ class RipplePlugin:
                 elif command == 'whoami':
                     self.send_pm(sender, "Using account %s" % (account,))
                 elif command == 'apiadd':
-                    arg_match = re.search('^ (\+[A-Za-z0-9_.+]+) (\+[A-Za-z0-9_]+)', remaining)
+                    arg_match = re.search('^ ([A-Za-z0-9_.+]+) ([A-Za-z0-9_.+]+)', remaining)
                     if arg_match:
                         key_id = arg_match.group(1)
                         secret = arg_match.group(2)
