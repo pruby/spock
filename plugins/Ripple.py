@@ -541,7 +541,7 @@ class RipplePlugin:
             else:
                 self.cur.execute("""INSERT INTO debts (debt_from, debt_to, amount, currency) VALUES (%s, %s, %s, %s)""", (from_account, to_account, amount, currency))
     
-    def add_api_key(invoker, key_id, secret):
+    def add_api_key(self, invoker, key_id, secret):
         account = self.current_account(invoker)
         self.cur.execute("""SELECT 1 FROM api_keys WHERE key_id = %s""", (key_id,))
         row = self.cur.fetchone()
@@ -551,7 +551,7 @@ class RipplePlugin:
             self.cur.execute("""INSERT INTO api_keys (key_id, secret, account_name, access_type) VALUES (%s, %s, %s, %s)""", (key_id, secret, account, 'read'))
             self.send_pm(invoker, "Registered API key %s" % (key_id,))
     
-    def delete_api_key(invoker, key_id):
+    def delete_api_key(self, invoker, key_id):
         self.cur.execute("""SELECT 1 FROM api_keys JOIN account_managers USING (account_name) WHERE key_id = %s AND minecraft_name = %s""", (key_id,invoker))
         row = self.cur.fetchone()
         if row:
@@ -560,7 +560,7 @@ class RipplePlugin:
         else:
             self.send_pm(invoker, "You do not have a key with that ID.")
     
-    def list_api_keys(invoker):
+    def list_api_keys(self, invoker):
         self.cur.execute("""SELECT key_id FROM api_keys WHERE minecraft_name = %s""", (invoker,))
         keys = []
         for row in self.cur.fetchall():
