@@ -549,6 +549,7 @@ class RipplePlugin:
             self.send_pm(invoker, "A key with that ID already exists. Please choose a different ID.")
         else:
             self.cur.execute("""INSERT INTO api_keys (key_id, secret, account_name, access_type) VALUES (%s, %s, %s, %s)""", (key_id, secret, account, 'read'))
+            self.conn.commit()
             self.send_pm(invoker, "Registered API key %s" % (key_id,))
     
     def delete_api_key(self, invoker, key_id):
@@ -556,6 +557,7 @@ class RipplePlugin:
         row = self.cur.fetchone()
         if row:
             self.cur.execute("""DELETE FROM api_keys WHERE key_id = %s""", (key_id,))
+            self.conn.commit()
             self.send_pm(invoker, "Deleted API key %s" % (key_id,))
         else:
             self.send_pm(invoker, "You do not have a key with that ID.")
