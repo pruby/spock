@@ -428,12 +428,12 @@ class RipplePlugin:
         while expand_set:
             available_links = Set()
             # Follow paths of repaying debt
-            self.cur.execute("""SELECT debt_to, debt_from FROM debts WHERE currency = %s AND debt_to IN (%s)""", (currency, tuple(expand_set)))
+            self.cur.execute("""SELECT debt_to, debt_from FROM debts WHERE currency = %s AND debt_to IN %s""", (currency, tuple(expand_set)))
             for row in self.cur.fetchall():
                 available_links.add(row)
                 
             # Follow paths of trusted debt acquisition
-            self.cur.execute("""SELECT trustee, trustor FROM trusts WHERE currency = %s AND trustee IN (%s)""", (currency, tuple(expand_set)))
+            self.cur.execute("""SELECT trustee, trustor FROM trusts WHERE currency = %s AND trustee IN %s""", (currency, tuple(expand_set)))
             for row in self.cur.fetchall():
                 available_links.add(row)
             
