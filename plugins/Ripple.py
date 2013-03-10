@@ -49,7 +49,7 @@ class RipplePlugin:
                 elif command == 'register':
                     arg_match = re.search('^ (\+[A-Za-z0-9_]+)', remaining)
                     if arg_match:
-                        account = arg_match.group(1)
+                        account = self.fuzz_account_case(arg_match.group(1))
                         if self.check_account(0, account):
                             self.send_pm(sender, "That account is already registered :)")
                         else:
@@ -64,7 +64,7 @@ class RipplePlugin:
                 elif command == 'use':
                     arg_match = re.search('^ (\+[A-Za-z0-9_]+)', remaining)
                     if arg_match:
-                        account = arg_match.group(1)
+                        account = self.fuzz_account_case(arg_match.group(1))
                         self.switch_account(sender, account)
                     elif remaining == '':
                         self.switch_account(sender, sender)
@@ -94,7 +94,7 @@ class RipplePlugin:
                 elif command == 'trust':
                     arg_match = re.search('^ (\+?[A-Za-z0-9_]+) ([0-9]+(?:\.[0-9]{1,2})?)([a-z]+)', remaining)
                     if arg_match:
-                        trustee = arg_match.group(1)
+                        trustee = self.fuzz_account_case(arg_match.group(1))
                         if trustee == account:
                             self.send_pm(sender, "You can't loan yourself money")
                         else:
@@ -115,7 +115,7 @@ class RipplePlugin:
                 elif command == 'reducetrust':
                     arg_match = re.search('^ (\+?[A-Za-z0-9_]+) (?:([0-9]+(?:\.[0-9]{1,2})?)([a-z]+))?', remaining)
                     if arg_match:
-                        trustee = arg_match.group(1)
+                        trustee = self.fuzz_account_case(arg_match.group(1))
                         amount = abs(Decimal(arg_match.group(2)))
                         currency = arg_match.group(3)
                         if not (self.check_account(sender, account) and self.check_account(sender, trustee)):
@@ -129,7 +129,7 @@ class RipplePlugin:
                 elif command == 'pay':
                     arg_match = re.search('^ (\+?[A-Za-z0-9_]+) ([0-9]+(?:\.[0-9]{1,2})?)([a-z]+)', remaining)
                     if arg_match:
-                        recipient = arg_match.group(1)
+                        recipient = self.fuzz_account_case(arg_match.group(1))
                         amount = Decimal(arg_match.group(2))
                         currency = arg_match.group(3)
                         if amount > 0:
@@ -146,7 +146,7 @@ class RipplePlugin:
                 elif command == 'refuse':
                     arg_match = re.search('^ (\+?[A-Za-z0-9_]+) ([0-9]+(?:\.[0-9]{1,2})?)([a-z]+)', remaining)
                     if arg_match:
-                        recipient = arg_match.group(1)
+                        recipient = self.fuzz_account_case(arg_match.group(1))
                         amount = Decimal(arg_match.group(2))
                         currency = arg_match.group(3)
                         if amount > 0:
@@ -236,7 +236,15 @@ class RipplePlugin:
         for i in xrange(0, len(message) - 1, chunkSize):
             self.client.push(Packet(ident=0x03, data={'text':prefix + message[i:min(i+chunkSize,len(message))]}))
             sleep(lineDelay)
-        
+    
+    def fuzz_account_case(self, account):
+        self.cur.execute("""SELECT account_name FROM accounts WHERE LOWER(account_name) = LOWER(%s)""", (account,))
+        row = self.cur.fetchone()
+        if row:
+            return row[0]
+        else:
+            return account
+    
     def check_account(self, invoker, account):
         self.cur.execute("""SELECT 1 FROM accounts WHERE account_name = (%s)""", (account,))
         row = self.cur.fetchone()

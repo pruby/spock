@@ -5,6 +5,8 @@ CREATE TABLE accounts (
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+CREATE UNIQUE INDEX account_name_case_insensitive ON accounts(LOWER(account_name));
+
 CREATE TABLE account_managers (
   account_name TEXT NOT NULL REFERENCES accounts,
   minecraft_name TEXT NOT NULL
