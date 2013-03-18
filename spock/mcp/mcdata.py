@@ -230,6 +230,7 @@ names = {
 	0x3C: "Explosion",
 	0x3D: "Sound Or Particle Effect",
 	0x3E: "Named Sound Effect",
+	0x3F: "Particle",
 	0x46: "Changed Game State",
 	0x47: "Global Entity",
 	0x64: "Open Window",
@@ -250,6 +251,10 @@ names = {
 	0xCB: "Tab-complete",
 	0xCC: "Client Settings",
 	0xCD: "Client Statuses",
+	0xCE: "Create Scoreboard",
+	0xCF: "Update Score",
+	0xD0: "Display Scoreboard",
+	0xD1: "Teams",
 	0xFA: "Plugin Message",
 	0xFC: "Encryption Key Response",
 	0xFD: "Encryption Key Request",
@@ -561,6 +566,17 @@ structs = {
 		("int", "z"),
 		("float", "volume"),
 		("byte", "pitch")),
+	#Particle
+	0x3F: (
+		("string", "particle_name"),
+		("float", "x"),
+		("float", "y"),
+		("float", "z"),
+		("float", "offset_x"),
+		("float", "offset_y"),
+		("float", "offset_z"),
+		("float", "particle_speed"),
+		("int", "number")),
 	#Change Game State
 	0x46: (
 		("byte", "reason"),
@@ -577,7 +593,8 @@ structs = {
 		("byte", "window_id"),
 		("byte", "inventory_type"),
 		("string", "window_title"),
-		("byte", "slot_count")),
+		("byte", "slot_count"),
+		("bool", "use_title")),
 	#Close Window
 	0x65: ("byte", "window_id"),
 	#Click Window
@@ -661,6 +678,25 @@ structs = {
 		("bool", "show_cape")),
 	#Client Status
 	0xCD: ("byte", "payload"),
+	#Create Scoreboard
+	0xCE: (
+		("string", "name"),
+		("string", "text"),
+		("byte", "create")),
+	#Update Score
+	0xCF: (
+		("string", "item_name"),
+		("byte", "update"),
+		("string", "score_name"),
+		("int", "value")),
+	#Display Scoreboard
+	0xD0: (
+		("byte", "position"),
+		("string", "score_name")),
+	#Teams
+	0xD1: (
+		("string", "team_name"),
+		("byte", "mode")),
 	#Plugin message
 	0xFA: (
 		("string", "channel"),

@@ -11,13 +11,14 @@ import cipher
 from spock.net.cflags import cflags
 from spock.net.flag_handlers import fhandles
 from spock.net.packet_handlers import phandles
+from spock.net import timer
 from spock.mcp import mcdata, mcpacket
 from spock import utils, smpmap, bound_buffer
 
 rmask = select.POLLIN|select.POLLERR|select.POLLHUP
 smask = select.POLLOUT|select.POLLIN|select.POLLERR|select.POLLHUP
 
-class Client:
+class Client(object):
 	def __init__(self, **kwargs):
 		#Grab some settings
 		self.daemon = kwargs.get('daemon', False)
@@ -36,6 +37,7 @@ class Client:
 
 		#Initialize plugin list
 		#Plugins should never touch this
+		self.timers = []
 		self.plugin_handlers = {flag: [] for name, flag in cflags.iteritems()}
 		self.plugin_dispatch = {ident: [] for ident in mcdata.structs}
 		self.plugins = [plugin(self) for plugin in plugins]
@@ -99,6 +101,8 @@ class Client:
 		#Set up signal handlers
 		signal.signal(signal.SIGINT, self.signal_handler)
 		signal.signal(signal.SIGTERM, self.signal_handler)
+		#Fire off plugins that need to run after init
+		for callback in self.plugin_handlers[cflags['START_EVENT']]: callback(flag)
 
 		while not (self.flags&cflags['KILL_EVENT'] and self.kill):
 			self.getflags()
@@ -109,6 +113,11 @@ class Client:
 						if flag in fhandles: fhandles[flag](self)
 						#Plugin handlers
 						for callback in self.plugin_handlers[flag]: callback(flag)
+			for index, timer in enumerate(self.timers):
+				if timer.update():
+					timer.fire()
+				if not timer.check():
+					del self.timers[index]
 			if self.daemon:
 				sys.stdout.flush()
 				sys.stderr.flush()
@@ -151,6 +160,9 @@ class Client:
 		for flag in flags:
 			self.plugin_handlers[flag].append(callback)
 
+	def register_timer(self, timer):
+		self.timers.append(timer)
+
 	def connect(self, host = 'localhost', port=25565):
 		if self.proxy['enabled']:
 			self.host = self.proxy['host']
@@ -159,6 +171,7 @@ class Client:
 			self.host = host
 			self.port = port
 		try:
+			print "Attempting to connect to host:", self.host, "port:", self.port
 			self.sock.connect((self.host, self.port))
 		except socket.error as error:
 			logging.info("Error on Connect (this is normal): " + str(error))
@@ -205,10 +218,14 @@ class Client:
 		)
 
 	def start_session(self, username, password = ''):
+		self.mc_username = username
+		self.mc_password = password
+
 		#Stage 1: Login to Minecraft.net
 		if self.authenticated:
 			print "Attempting login with username:", username, "and password:", password
 			LoginResponse = utils.LoginToMinecraftNet(username, password)
+			print LoginResponse
 			if (LoginResponse['Response'] != "Good to go!"):
 				logging.error('Login Unsuccessful, Response: %s', LoginResponse['Response'])
 				self.login_err = True
