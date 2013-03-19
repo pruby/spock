@@ -1,4 +1,7 @@
 from spock.mcp.mcpacket import Packet
+import os
+
+antiAfkMessageSource = 'fortune -n 100 -s literature'
 
 #Very bad and naive Anti-AFK plugin
 class AntiAFKPlugin:
@@ -10,8 +13,11 @@ class AntiAFKPlugin:
 	def avoid_afk(self, packet):
 		msg = packet.data['text'].lower()
 		if ('afk plugin' in msg):
+			p = os.popen(antiAfkMessageSource)
+			message = ' '.join(p.readlines())
+			p.close()
 			self.client.push(Packet(ident=0x03, data={
-				"text": "Hello, I am Spock_Bot, this message is to avoid AFKGC"
+				"text": message
 				})
 			)
 
