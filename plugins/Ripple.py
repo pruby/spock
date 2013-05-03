@@ -38,7 +38,7 @@ class RipplePlugin:
             msg = packet.data['text']
             msg = re.sub('\xa7.', '', msg)
             match = re.search('^From ([A-Za-z0-9_]+): ([A-Za-z0-9]+)(.*)', msg)
-            #match = re.search('^([A-Za-z0-9]+) whispers ([A-Za-z0-9]+)(.*)', msg)
+            match = re.search('^([A-Za-z0-9]+) whispers ([A-Za-z0-9]+)(.*)', msg)
             if match:
                 sender = match.group(1)
                 command = match.group(2)
@@ -389,21 +389,34 @@ class RipplePlugin:
     
     def send_payment(self, invoker, recipient, amount, currency):
         account = self.current_account(invoker)
-        paths = self.find_paths(account, recipient, amount, currency)
+        paths = self.find_paths(account, recipient, amount, currency, None)
         total_amount = 0
         for pair in paths:
             total_amount += pair[1]
         if total_amount == amount:
             self.transact_paths(invoker, account, recipient, amount, paths, currency)
-            self.send_pm(invoker, "Sent %0.2f%s to %s" % (amount, currency, recipient))
-            # Send receipts to logged-in managers
-            for manager in self.group_managers(recipient):
-                if manager == recipient:
-                    self.send_pm(manager, "%s sent you %0.2f%s" % (account, amount, currency))
-                else:
-                    self.send_pm(manager, "%s sent %s %0.2f%s" % (account, recipient, amount, currency))
         else:
-            self.send_pm(invoker, "Could not send payment of %0.2f%s to %s, maximum is %0.2f%s" % (amount, currency, recipient, total_amount, currency))
+            # Try to find path through implicit trustee
+            self.cur.execute("""SELECT currency_name, implicit_trustee FROM currencies WHERE currency_name = %s""", (currency,))
+            currency_detail = self.cur.fetchone()
+            implicit_trustee = currency_detail[1]
+            if implicit_trustee:
+                # Try to send to the implicit trustee to hold on the recipient's behalf
+                if implicit_trustee == account:
+                    alternate_paths = [([account, recipient], amount)]
+                else:
+                    alternate_paths = self.find_paths(account, implicit_trustee, amount, currency, implicit_trustee)
+                    for pair in alternate_paths:
+                      pair[0].append(recipient)
+                total_amount = 0
+                for pair in alternate_paths:
+                    total_amount += pair[1]
+                if total_amount == amount:
+                    self.transact_paths(invoker, account, recipient, amount, alternate_paths, currency)
+                else:
+                    self.send_pm(invoker, "Could not send payment of %0.2f%s to %s, maximum is %0.2f%s" % (amount, currency, recipient, total_amount, currency))
+            else:
+                self.send_pm(invoker, "Could not send payment of %0.2f%s to %s, maximum is %0.2f%s" % (amount, currency, recipient, total_amount, currency))
     
     def refuse_debt(self, invoker, trustor, amount, currency):
         account = self.current_account(invoker)
@@ -429,10 +442,11 @@ class RipplePlugin:
         else:
             send_pm(invoker, "You do not directly owe %s to %s" % (currency, trustor))
     
-    def find_paths(self, sender, recipient, amount, currency):
+    def find_paths(self, sender, recipient, amount, currency, implicit_trustee):
         expand_set = Set([sender])
         edge_paths = [[sender]]
         paths = []
+        
         while expand_set:
             available_links = Set()
             # Follow paths of repaying debt
@@ -454,7 +468,7 @@ class RipplePlugin:
                             # Reached the recipient - measure capacity
                             new_path = path[:]
                             new_path.append(link[1])
-                            bottleneck = self.find_bottleneck(new_path, currency, paths)
+                            bottleneck = self.find_bottleneck(new_path, currency, paths, implicit_trustee)
                             if bottleneck == None or bottleneck >= amount:
                                 paths.append((new_path, amount))
                                 return paths
@@ -472,12 +486,12 @@ class RipplePlugin:
             edge_paths = next_paths
         return paths
     
-    def find_bottleneck(self, path, currency, prior_paths):
+    def find_bottleneck(self, path, currency, prior_paths, implicit_trustee):
         # Find how much we can send along a path
         limit = None
         from_account = path[0]
         for to_account in path[1:]:
-            link_limit = self.find_max_trusted_transfer(from_account, to_account, currency)
+            link_limit = self.find_max_trusted_transfer(from_account, to_account, currency, implicit_trustee)
             for pair in prior_paths:
                 path = pair[0]
                 prior_amount = pair[1]
@@ -491,7 +505,10 @@ class RipplePlugin:
             from_account = to_account
         return limit
     
-    def find_max_trusted_transfer(self, from_account, to_account, currency):
+    def find_max_trusted_transfer(self, from_account, to_account, currency, implicit_trustee):
+        if from_account == implicit_trustee:
+          return Infinity
+        
         trusted_amount = 0
         self.cur.execute("""SELECT amount FROM trusts WHERE currency = %s AND trustor = %s AND trustee = %s""", (currency, to_account, from_account))
         for row in self.cur.fetchall():
@@ -529,6 +546,13 @@ class RipplePlugin:
                 self.shift_amount_pair(from_account, to_account, amount, currency)
                 from_account = to_account
         self.conn.commit()
+        self.send_pm(invoker, "Sent %0.2f%s to %s" % (amount, currency, recipient))
+        # Send receipts to logged-in managers
+        for manager in self.group_managers(recipient):
+            if manager == recipient:
+                self.send_pm(manager, "%s sent you %0.2f%s" % (sender, amount, currency))
+            else:
+                self.send_pm(manager, "%s sent %s %0.2f%s" % (sender, recipient, amount, currency))
     
     def shift_amount_pair(self, from_account, to_account, amount, currency):
         # First erase debt

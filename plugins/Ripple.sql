@@ -30,7 +30,8 @@ CREATE TABLE refusals (
 
 CREATE TABLE currencies (
   currency_name TEXT PRIMARY KEY,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  implicit_trustee TEXT NULL REFERENCES account
 );
 INSERT INTO CURRENCIES (currency_name) VALUES ('d'), ('i');
 
