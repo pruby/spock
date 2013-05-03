@@ -1,5 +1,6 @@
 from spock.mcp.mcpacket import Packet
 from spock.net.cflags import cflags
+from time import sleep
 
 #Will relentlessly try to reconnect to a server
 class ReConnectPlugin:
@@ -27,7 +28,7 @@ class ReConnectPlugin:
 			self.client.login(self.host, self.port)
 
 	def reset_reconnect_time(self, *args):
-		self.delay = 1.18
+		self.delay = 4.69
 
 	#Grabs host and port on handshake
 	def grab_host(self, packet):
