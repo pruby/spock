@@ -23,7 +23,7 @@ CREATE TABLE api_keys (
 CREATE TABLE refusals (
   trustor TEXT NOT NULL REFERENCES accounts,
   trustee TEXT NOT NULL REFERENCES accounts,
-  amount DECIMAN NOT NULL CHECK (amount >= 0),
+  amount DECIMAL NOT NULL CHECK (amount >= 0),
   currency TEXT NOT NULL REFERENCES currencies,
   refused_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
@@ -66,7 +66,9 @@ CREATE TABLE transactions (
   amount DECIMAL NOT NULL CHECK (amount > 0),
   currency TEXT NOT NULL REFERENCES currencies,
   invoker TEXT NOT NULL,
-  sent_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+  transaction_state TEXT NOT NULL DEFAULT 'pending',
+  sent_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  CONSTRAINT allowed_transaction_state_values CHECK transaction_state IN ('pending', 'completed', 'failed')
 );
 
 CREATE TABLE transaction_paths (

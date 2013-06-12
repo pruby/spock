@@ -349,13 +349,13 @@ class RipplePlugin:
     
     def show_direct_transactions(self, invoker):
         account = self.current_account(invoker)
-        self.cur.execute("""SELECT sent_at, sent_from, sent_to, amount, currency FROM transactions WHERE (sent_from = %s OR sent_to = %s) AND sent_at > NOW() - '1 week'::interval ORDER BY sent_at DESC LIMIT 5""", (account, account))
+        self.cur.execute("""SELECT sent_at, sent_from, sent_to, amount, currency FROM transactions WHERE transaction_state = 'completed' AND (sent_from = %s OR sent_to = %s) AND sent_at > NOW() - '1 week'::interval ORDER BY sent_at DESC LIMIT 5""", (account, account))
         for row in self.cur.fetchall():
             self.send_pm(invoker, "[%s] %0.2f%s %s -> %s" % (row[0].strftime("%Y-%m-%d %H:%M:%S"), row[3], row[4], row[1], row[2]))
     
     def show_all_transactions(self, invoker):
         account = self.current_account(invoker)
-        self.cur.execute("""SELECT DISTINCT transaction_paths.transaction_id, transactions.sent_at, transaction_paths.amount, transactions.currency, transaction_paths.path FROM shifts JOIN transaction_paths USING (transaction_id, path_id) JOIN transactions ON (shifts.transaction_id = transactions.transaction_id) WHERE from_account = %s OR to_account = %s AND sent_at > NOW() - '1 week'::interval ORDER BY sent_at DESC LIMIT 5""", (account,account))
+        self.cur.execute("""SELECT DISTINCT transaction_paths.transaction_id, transactions.sent_at, transaction_paths.amount, transactions.currency, transaction_paths.path FROM shifts JOIN transaction_paths USING (transaction_id, path_id) JOIN transactions ON (shifts.transaction_id = transactions.transaction_id) WHERE transaction_state = 'completed' AND from_account = %s OR to_account = %s AND sent_at > NOW() - '1 week'::interval ORDER BY sent_at DESC LIMIT 5""", (account,account))
         for row in self.cur.fetchall():
             self.send_pm(invoker, "[%s] sent %0.2f%s through (%s)" % (row[1].strftime("%Y-%m-%d %H:%M:%S"), row[2], row[3], ', '.join(row[4])))
     
@@ -529,7 +529,7 @@ class RipplePlugin:
     
     def transact_paths(self, invoker, sender, recipient, amount, paths, currency):
         # Log record
-        self.cur.execute("""INSERT INTO transactions (sent_from, sent_to, amount, currency, invoker) VALUES (%s, %s, %s, %s, %s) RETURNING transaction_id""", (sender, recipient, amount, currency, invoker))
+        self.cur.execute("""INSERT INTO transactions (sent_from, sent_to, amount, currency, invoker, transaction_state) VALUES (%s, %s, %s, %s, %s, 'completed') RETURNING transaction_id""", (sender, recipient, amount, currency, invoker))
         transaction_id = self.cur.fetchone()[0]
         
         for path_id, pair in enumerate(paths):
